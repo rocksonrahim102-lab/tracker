@@ -1,0 +1,5 @@
+{
+  "name": "Project Task Tracker",
+  "description": "A full-stack project and task tracking system with real-time updates and secure authentication.",
+  "requestFramePermissions": []
+}

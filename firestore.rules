@@ -1,0 +1,111 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {uid}
+    // Fields:
+    //   - uid: string (required)
+    //   - displayName: string (optional)
+    //   - email: string (required)
+    //   - photoURL: string (optional)
+    //   - role: string (required, 'admin' or 'user')
+    //
+    // Collection: projects
+    // Document ID: {projectId}
+    // Fields:
+    //   - id: string (optional)
+    //   - title: string (required)
+    //   - description: string (optional)
+    //   - ownerId: string (required)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: tasks
+    // Document ID: {taskId}
+    // Fields:
+    //   - id: string (optional)
+    //   - projectId: string (required)
+    //   - title: string (required)
+    //   - description: string (optional)
+    //   - deadline: timestamp (optional)
+    //   - priority: string (required, 'low', 'medium', 'high')
+    //   - status: string (required, 'To Do', 'In Progress', 'Done')
+    //   - assignedTo: string (optional)
+    //   - ownerId: string (required)
+    //   - createdAt: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "rocksonrahim102@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.uid is string && data.uid.size() > 0 &&
+             data.email is string && data.email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$") &&
+             data.role in ['admin', 'user'];
+    }
+
+    function isValidProject(data) {
+      return data.keys().hasAll(['title', 'ownerId', 'createdAt']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 100 &&
+             data.ownerId == request.auth.uid &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidTask(data) {
+      return data.keys().hasAll(['title', 'projectId', 'ownerId', 'createdAt', 'priority', 'status']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 100 &&
+             data.projectId is string &&
+             data.ownerId == request.auth.uid &&
+             data.createdAt is timestamp &&
+             data.priority in ['low', 'medium', 'high'] &&
+             data.status in ['To Do', 'In Progress', 'Done'];
+    }
+
+    // ===============================================================
+    // Match Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == 'user' || isAdmin());
+      allow update: if (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role) || isAdmin();
+    }
+
+    match /projects/{projectId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidProject(request.resource.data);
+      allow update: if (isAuthenticated() && resource.data.ownerId == request.auth.uid && isValidProject(request.resource.data)) || isAdmin();
+      allow delete: if (isAuthenticated() && resource.data.ownerId == request.auth.uid) || isAdmin();
+    }
+
+    match /tasks/{taskId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidTask(request.resource.data);
+      allow update: if (isAuthenticated() && (resource.data.ownerId == request.auth.uid || resource.data.assignedTo == request.auth.uid) && isValidTask(request.resource.data)) || isAdmin();
+      allow delete: if (isAuthenticated() && resource.data.ownerId == request.auth.uid) || isAdmin();
+    }
+
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

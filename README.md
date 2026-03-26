@@ -1,11 +1,74 @@
-<div align="center">
+# Project Task Tracker API Documentation
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+This application uses a full-stack architecture with an Express backend and a React frontend powered by Firebase.
 
-  <h1>Built with AI Studio</h2>
+## Authentication
+The application uses Firebase Authentication (Google Login). For REST API access, you would typically pass the Firebase ID Token in the `Authorization` header.
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+```http
+Authorization: Bearer <FIREBASE_ID_TOKEN>
+```
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+## Endpoints
 
-</div>
+### 1. Health Check
+`GET /api/health`
+- **Response:**
+  ```json
+  {
+    "status": "ok",
+    "message": "Project Task Tracker API is running"
+  }
+  ```
+
+### 2. Create Project
+`POST /api/projects`
+- **Request Body:**
+  ```json
+  {
+    "title": "New Website",
+    "description": "Redesigning the corporate website"
+  }
+  ```
+- **Response (201 Created):**
+  ```json
+  {
+    "message": "Project created (mock response)",
+    "project": {
+      "title": "New Website",
+      "description": "Redesigning the corporate website"
+    }
+  }
+  ```
+
+### 3. Real-time Data
+For real-time updates and secure data access, the frontend interacts directly with Firestore using the following collections:
+- `/users/{uid}`: User profiles
+- `/projects/{projectId}`: Projects owned by the user
+- `/tasks/{taskId}`: Tasks associated with projects
+
+## Database Schema (Firestore)
+
+### Project Document
+```json
+{
+  "title": "string",
+  "description": "string",
+  "ownerId": "string (uid)",
+  "createdAt": "timestamp"
+}
+```
+
+### Task Document
+```json
+{
+  "projectId": "string (docId)",
+  "title": "string",
+  "description": "string",
+  "deadline": "timestamp",
+  "priority": "low | medium | high",
+  "status": "To Do | In Progress | Done",
+  "ownerId": "string (uid)",
+  "createdAt": "timestamp"
+}
+```
